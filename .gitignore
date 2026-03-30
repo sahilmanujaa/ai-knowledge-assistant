@@ -1,0 +1,4 @@
+/venv
+.env
+/app/chroma_db
+/app/chroma_db/*
