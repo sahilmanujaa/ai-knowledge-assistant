@@ -21,11 +21,16 @@ def split_documents(documents):
     print("Splitting documents into chunks...")
     text_splitter = RecursiveCharacterTextSplitter(
         chunk_size=800,
-        chunk_overlap=80,
+        chunk_overlap=150,
         length_function=len,
         is_separator_regex=False,
     )
     chunks = text_splitter.split_documents(documents)
+    chunks = [
+        chunk for chunk in chunks
+        if len(chunk.page_content) > 100
+    ]
+
     print(f"Split documents into {len(chunks)} chunks.")
     return chunks
 

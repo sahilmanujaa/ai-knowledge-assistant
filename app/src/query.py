@@ -16,7 +16,7 @@ def query_database(query_text):
     db = Chroma(persist_directory=CHROMA_PATH, embedding_function=embedding_function)
     
     # Perform a similarity search
-    results = db.similarity_search_with_score(query_text, k=3)
+    results = db.similarity_search_with_score(query_text, k=5)
     
     if not results:
         print("No matches found in the database. Are you sure you ran the ingestion script?")
@@ -24,10 +24,16 @@ def query_database(query_text):
         
     print("--- Top Matches ---\n")
     for i, (doc, score) in enumerate(results):
-        # A lower score generally means a closer match in LangChain's default Chroma distance metric (L2 usually)
-        print(f"[{i+1}] Source: {doc.metadata.get('source', 'Unknown')} (Distance Score: {score:.4f})")
-        print(f"Text Preview: {doc.page_content.strip()}")
-        print("-" * 50)
+
+        source = doc.metadata.get("source", "Unknown")
+        page = doc.metadata.get("page", "Unknown")
+
+        print(f"\nResult {i+1}")
+        print(f"Score: {score:.4f}")
+        print(f"Source File: {os.path.basename(source)}")
+        print(f"Page: {page}")
+        print(doc.page_content)
+        print("="*80)
 
 if __name__ == "__main__":
     # Setup argparse so you can pass custom queries from the terminal
@@ -40,5 +46,5 @@ if __name__ == "__main__":
         help="The question or text you want to search for."
     )
     args = parser.parse_args()
-    
+
     query_database(args.query)
