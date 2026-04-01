@@ -12,17 +12,16 @@ load_dotenv()
 
 # Paths
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DATA_DIR = os.path.join(BASE_DIR, "data")   # app/data/
+CHROMA_PATH = os.path.join(BASE_DIR, "chroma_db")   # Single shared DB
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
-# ─────────────────────────────────────────────
-# Step 1 — Router LLM + Prompt
-# ─────────────────────────────────────────────
+# Valid topic names — must match the 'topic' metadata set in ingest.py
+VALID_SOURCES = ["python", "mysql", "docker"]
+DEFAULT_SOURCE = "python"
 
-router_llm = ChatOpenAI(
-    model="gpt-4o-mini",
-    temperature=0
-)
+# ─────────────────────────────────────────────
+# Step 1 — Router
+# ─────────────────────────────────────────────
 
 ROUTER_PROMPT = """
 You are a query router.
@@ -34,62 +33,54 @@ Possible sources:
 - mysql
 - docker
 
-Return ONLY the source name.
+Return ONLY the source name, nothing else.
 
 Question: {question}
 """
 
-def route_query(question: str) -> str:
-    """Routes the question to the appropriate knowledge base name."""
-    response = router_llm.invoke(
+def route_query(question: str, llm: ChatOpenAI) -> str:
+    """
+    Routes the question to the appropriate topic name.
+    Falls back to DEFAULT_SOURCE if the LLM returns an unexpected value.
+    """
+    response = llm.invoke(
         [HumanMessage(content=ROUTER_PROMPT.format(question=question))]
     )
-    return response.content.strip().lower()
+    source = response.content.strip().lower()
+
+    if source not in VALID_SOURCES:
+        print(f"[Warning] Router returned unknown source '{source}'. Falling back to '{DEFAULT_SOURCE}'.")
+        return DEFAULT_SOURCE
+
+    return source
 
 
 # ─────────────────────────────────────────────
-# Step 2 — Load Multiple Vector Databases
+# Step 2 — Load Single Chroma DB
 # ─────────────────────────────────────────────
-# Existing folders inside app/data/:
-#
-#   chroma_python  → Python docs
-#   chroma_mysql   → MySQL / database docs
-#   chroma_docker  → Docker / DevOps docs
+# A single chroma_db holds all chunks.
+# Each chunk has a 'topic' metadata field set during ingestion.
+# We filter by topic at retrieval time using Chroma's `where` filter.
 
-
-def create_retrievers(embedding_function):
-    """Load all Chroma DBs from app/data/ and return a retriever_map dict."""
-    print("Loading Chroma databases from app/data/...")
-
-    python_db = Chroma(
-        persist_directory=os.path.join(DATA_DIR, "chroma_python"),
-        embedding_function=embedding_function
-    )
-    mysql_db = Chroma(
-        persist_directory=os.path.join(DATA_DIR, "chroma_mysql"),
-        embedding_function=embedding_function
-    )
-    docker_db = Chroma(
-        persist_directory=os.path.join(DATA_DIR, "chroma_docker"),
-        embedding_function=embedding_function
-    )
-
-    # Step 3 — Create retrievers and store in a dictionary
-    python_retriever = python_db.as_retriever(search_kwargs={"k": 4})
-    mysql_retriever  = mysql_db.as_retriever(search_kwargs={"k": 4})
-    docker_retriever = docker_db.as_retriever(search_kwargs={"k": 4})
-
-    retriever_map = {
-        "python": python_retriever,
-        "mysql":  mysql_retriever,
-        "docker": docker_retriever,
-    }
-
+def create_retriever_map(db: Chroma) -> dict:
+    """
+    Creates one retriever per topic — each filters the shared DB
+    to only return chunks whose metadata topic matches.
+    """
+    retriever_map = {}
+    for source in VALID_SOURCES:
+        retriever_map[source] = db.as_retriever(
+            search_kwargs={
+                "k": 4,
+                "filter": {"topic": source}   # Chroma metadata filter
+            }
+        )
+        print(f"  ✓ Retriever ready for topic: {source}")
     return retriever_map
 
 
 # ─────────────────────────────────────────────
-# Step 4 — Main Chat Loop with Router
+# Step 3 — Main Chat Loop with Router
 # ─────────────────────────────────────────────
 
 def main():
@@ -98,7 +89,13 @@ def main():
     print("Loading embeddings model...")
     embedding_function = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
 
-    retriever_map = create_retrievers(embedding_function)
+    print(f"Connecting to Chroma DB at {CHROMA_PATH}...")
+    db = Chroma(
+        persist_directory=CHROMA_PATH,
+        embedding_function=embedding_function
+    )
+
+    retriever_map = create_retriever_map(db)
 
     print("Initializing LLM and Memory...")
     llm = ChatOpenAI(
@@ -112,30 +109,32 @@ def main():
         output_key="answer"
     )
 
-    while True:
-        query = input("\nAsk a question (or type 'exit'): ")
-
-        if query.lower() == "exit":
-            print("Goodbye!")
-            break
-
-        # Route the query to the correct knowledge base
-        source = route_query(query)
-        print(f"Query routed to: {source}")
-
-        # Fallback to 'python' if the routed source isn't in the map
-        retriever = retriever_map.get(source, retriever_map["python"])
-
-        # Build the QA chain with the routed retriever
-        qa_chain = ConversationalRetrievalChain.from_llm(
+    # Pre-build one QA chain per topic — avoids recreating on every query
+    chain_map = {
+        source: ConversationalRetrievalChain.from_llm(
             llm=llm,
             retriever=retriever,
             memory=memory,
             return_source_documents=True,
             verbose=False
         )
+        for source, retriever in retriever_map.items()
+    }
 
-        result = qa_chain.invoke({"question": query})
+    print("\nReady! Ask anything.\n")
+
+    while True:
+        query = input("Ask a question (or type 'exit'): ")
+
+        if query.lower() == "exit":
+            print("Goodbye!")
+            break
+
+        # Route the query and pick the pre-built chain
+        source = route_query(query, llm)
+        print(f"[Router] → {source}")
+
+        result = chain_map[source].invoke({"question": query})
 
         print("\nAnswer:")
         print(result["answer"])
@@ -143,7 +142,9 @@ def main():
         # Uncomment to show source documents:
         # print("\nSources:")
         # for doc in result["source_documents"]:
-        #     print(doc.metadata)
+        #     print(f"  {doc.metadata.get('file', 'unknown')} | topic: {doc.metadata.get('topic', '-')}")
+
+        print()
 
 
 if __name__ == "__main__":
