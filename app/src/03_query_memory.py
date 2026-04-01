@@ -1,5 +1,5 @@
 """
-Day 3 — Conversational RAG with Memory
+3 — Conversational RAG with Memory
 ==========================================
 
 Technique: ConversationBufferMemory → Multi-turn Retrieval QA

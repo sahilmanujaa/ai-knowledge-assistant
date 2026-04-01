@@ -1,5 +1,5 @@
 """
-5 — Reranking Retrieval (Improving Accuracy After Retrieval)
+6 — Reranking Retrieval (Improving Accuracy After Retrieval)
 =================================================================
 
 Pipeline:

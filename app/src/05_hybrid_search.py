@@ -1,5 +1,5 @@
 """
-4 (Advanced) — Hybrid Search  (BM25 + Vector Ensemble)
+5 (Advace of 3) — Hybrid Search  (BM25 + Vector Ensemble)
 =============================================================
 
 Technique: Keyword Search (BM25) + Semantic Search (MMR) → Ensemble Fusion

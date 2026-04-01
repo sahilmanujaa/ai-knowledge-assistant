@@ -1,5 +1,5 @@
 """
-Day 2 — Basic RAG Query Pipeline
+2 — Basic RAG Query Pipeline
 ====================================
 
 Technique: Vector Similarity Search (MMR) → LLM Answer

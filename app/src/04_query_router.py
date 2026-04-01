@@ -1,5 +1,5 @@
 """
-3 (Extended) — Query Routing with Per-Topic Retrievers
+4 (Extended of 3) — Query Routing with Per-Topic Retrievers
 =============================================================
 
 Technique: LLM Router → Topic-Filtered Chroma Retriever → Conversational QA
