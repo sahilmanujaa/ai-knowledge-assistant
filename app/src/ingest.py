@@ -1,3 +1,34 @@
+"""
+1 — Document Ingestion Pipeline
+======================================
+
+Technique: PDF Ingestion → Chunking → Embedding → Vector Store
+
+High-Level Flow:
+─────────────────────────────────────────────────────
+  PDF Files (data/)
+        ↓
+  DirectoryLoader + PyPDFLoader
+  [Reads every .pdf and returns LangChain Documents]
+        ↓
+  RecursiveCharacterTextSplitter
+  [chunk_size=800, chunk_overlap=150]
+        ↓
+  Metadata tagging per chunk
+  [topic = python | mysql | docker | general]
+  [file  = original PDF filename]
+        ↓
+  HuggingFaceEmbeddings  (all-MiniLM-L6-v2)
+  [Converts each chunk → dense vector, runs locally]
+        ↓
+  Chroma.from_documents()
+  [Persists all vectors + metadata to chroma_db/]
+─────────────────────────────────────────────────────
+
+Run once before any query script:
+    python src/ingest.py
+"""
+
 import os
 from langchain_community.document_loaders import DirectoryLoader, PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter

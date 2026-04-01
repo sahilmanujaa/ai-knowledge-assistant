@@ -1,3 +1,41 @@
+"""
+3 (Extended) — Query Routing with Per-Topic Retrievers
+=============================================================
+
+Technique: LLM Router → Topic-Filtered Chroma Retriever → Conversational QA
+
+High-Level Flow:
+─────────────────────────────────────────────────────
+  User Question
+        ↓
+  Query Router  (LLM — gpt-4o-mini)
+  [Classifies question → python | mysql | docker]
+  [Falls back to 'python' on unknown output]
+        ↓
+  Topic-Filtered Retriever  (one per topic, pre-built)
+  [Chroma filter: {"topic": "<routed_source>"}]
+  [Searches only the relevant partition of the shared DB]
+  [k=4 chunks returned]
+        ↓
+  ConversationalRetrievalChain  (per-topic, pre-built)
+  [Condenses chat_history + question → standalone query]
+  [Retrieves topic-filtered chunks]
+  [Shared ConversationBufferMemory across all topics]
+        ↓
+  ChatOpenAI  (gpt-4o-mini)
+  [Generates answer using only relevant topic's context]
+        ↓
+  Answer  (with routing label shown e.g. [Router] → docker)
+─────────────────────────────────────────────────────
+
+Key difference from query_memory.py:
+  Questions are routed to the correct knowledge domain first,
+  avoiding cross-topic noise in retrieval.
+
+Run:
+    python src/query_router.py
+"""
+
 import os
 from langchain_chroma import Chroma
 from langchain_openai import ChatOpenAI

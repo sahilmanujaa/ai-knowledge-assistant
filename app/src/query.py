@@ -1,3 +1,33 @@
+"""
+Day 2 — Basic RAG Query Pipeline
+====================================
+
+Technique: Vector Similarity Search (MMR) → LLM Answer
+
+High-Level Flow:
+─────────────────────────────────────────────────────
+  User Question  (CLI input)
+        ↓
+  HuggingFaceEmbeddings  (all-MiniLM-L6-v2)
+  [Encodes question → query vector]
+        ↓
+  Chroma  —  max_marginal_relevance_search()
+  [Fetches k=5 diverse chunks  (fetch_k=20 → MMR rerank)]
+  [MMR balances relevance + diversity to avoid repetition]
+        ↓
+  ChatPromptTemplate
+  [Injects retrieved context + question into prompt]
+        ↓
+  ChatOpenAI  (gpt-4o-mini)
+  [Generates grounded answer from context only]
+        ↓
+  Answer + Source list  (file, page)
+─────────────────────────────────────────────────────
+
+Run:
+    python src/query.py
+"""
+
 import os
 import argparse
 from langchain_chroma import Chroma

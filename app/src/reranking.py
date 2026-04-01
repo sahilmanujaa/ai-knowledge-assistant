@@ -1,5 +1,5 @@
 """
-Day 21 — Reranking Retrieval (Improving Accuracy After Retrieval)
+5 — Reranking Retrieval (Improving Accuracy After Retrieval)
 =================================================================
 
 Pipeline:

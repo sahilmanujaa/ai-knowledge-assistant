@@ -1,3 +1,39 @@
+"""
+Day 3 — Conversational RAG with Memory
+==========================================
+
+Technique: ConversationBufferMemory → Multi-turn Retrieval QA
+
+High-Level Flow:
+─────────────────────────────────────────────────────
+  User Question  (turn N)
+        ↓
+  ConversationBufferMemory
+  [Appends all previous (question, answer) pairs]
+  [Sent as chat_history to the chain automatically]
+        ↓
+  HuggingFaceEmbeddings  (all-MiniLM-L6-v2)
+  + Chroma  —  MMR retriever  (k=3, fetch_k=10)
+  [Retrieves diverse chunks relevant to current turn]
+        ↓
+  ConversationalRetrievalChain
+  [Condenses chat_history + new question → standalone query]
+  [Runs retrieval on condensed query]
+  [Feeds context + history into the LLM]
+        ↓
+  ChatOpenAI  (gpt-4o-mini)
+  [Generates context-aware answer using full conversation]
+        ↓
+  Answer stored back → Memory  (loop continues)
+─────────────────────────────────────────────────────
+
+Key difference from query.py:
+  The LLM can refer back to earlier answers in the same session.
+
+Run:
+    python src/query_memory.py
+"""
+
 import os
 from langchain_chroma import Chroma
 from langchain_openai import ChatOpenAI

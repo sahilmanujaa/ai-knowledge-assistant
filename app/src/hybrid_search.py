@@ -1,3 +1,45 @@
+"""
+4 (Advanced) — Hybrid Search  (BM25 + Vector Ensemble)
+=============================================================
+
+Technique: Keyword Search (BM25) + Semantic Search (MMR) → Ensemble Fusion
+
+High-Level Flow:
+─────────────────────────────────────────────────────
+  User Question
+        ↓
+  ┌─────────────────────┐   ┌──────────────────────────┐
+  │   BM25Retriever     │   │  Chroma Vector Retriever  │
+  │  (keyword / TF-IDF) │   │  (MMR, k=3, fetch_k=10)  │
+  │  built from all     │   │  semantic similarity on   │
+  │  Chroma documents   │   │  all-MiniLM-L6-v2 embeds  │
+  └─────────┬───────────┘   └────────────┬─────────────┘
+            │  k=3 chunks                │  k=3 chunks
+            └──────────────┬─────────────┘
+                           ↓
+              EnsembleRetriever
+              [Reciprocal Rank Fusion — weights 0.5 / 0.5]
+              [Merges & deduplicates results from both]
+                           ↓
+              ConversationalRetrievalChain
+              [Condenses history + question → standalone query]
+              [Memory: ConversationBufferMemory]
+                           ↓
+              ChatOpenAI  (gpt-4o-mini)
+              [Answers using hybrid-retrieved context]
+                           ↓
+              Answer + Source metadata
+─────────────────────────────────────────────────────
+
+Why hybrid?
+  BM25  → exact keyword match  (e.g. function names, error codes)
+  Vector → conceptual similarity  (e.g. synonyms, paraphrasing)
+  Together they outperform either method alone.
+
+Run:
+    python src/hybrid_search.py
+"""
+
 import os
 from dotenv import load_dotenv
 
