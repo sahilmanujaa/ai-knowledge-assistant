@@ -2,6 +2,8 @@
 .env
 /app/chroma_db
 /app/chroma_db/*
+/app/chroma_db_parent
+/app/chroma_db_parent/*
 /app/data/*
 /__pycache__
 __pycache__/*
