@@ -1,4 +1,33 @@
+"""
+7 — Self-Query Retrieval Pipeline
+=============================================
+
+Technique: Query Constructor (LLM) → Metadata Filter + Similarity Search
+
+High-Level Flow:
+─────────────────────────────────────────────────────
+  User Question  (e.g., "Show me python docs")
+        ↓
+  ChatOpenAI (gpt-4o-mini) + Query Constructor Chain
+  [Translates natural language into a structured query]
+  [Extracts metadata filters (e.g., {{'topic': 'python'}})]
+        ↓
+  HuggingFaceEmbeddings (all-MiniLM-L6-v2)
+  [Encodes the core semantic query into a vector]
+        ↓
+  Chroma (Vector Store)
+  [Applies metadata filter first to narrow down space]
+  [Performs similarity search on the remaining chunks]
+        ↓
+  Relevant Documents (Filtered correctly based on metadata)
+─────────────────────────────────────────────────────
+
+Run:
+    python src/07_self_query_retrieval.py
+"""
+
 from langchain_openai import ChatOpenAI
+
 from langchain_classic.retrievers.self_query.base import SelfQueryRetriever
 from langchain_classic.chains.query_constructor.base import AttributeInfo
 from langchain_community.vectorstores import Chroma
